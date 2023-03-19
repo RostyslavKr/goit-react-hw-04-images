@@ -1,153 +1,134 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 
 import Searchbar from './Searchbar/Searchbar';
 import { ImageGallery } from './ImageGallery/ImageGallery';
-import { Modal } from './Modal/Modal';
+import Modal from './Modal/Modal';
 import { Button } from './Button/Button';
 import { Loader } from './Loader/Loader';
 import { getImages } from 'services/getImages';
 import { ToastContainer, toast } from 'react-toastify';
 
-class App extends Component {
-  state = {
-    textSearch: '',
-    images: [],
-    error: null,
-    status: 'idle',
-    page: 1,
-    showModal: false,
-    largeImage: '',
-    totalHits: null,
-  };
-  componentDidUpdate(_, prevState) {
-    if (prevState.textSearch !== this.state.textSearch) {
-      this.setState({ status: 'pending' });
-      getImages(this.state.textSearch, this.state.page)
-        .then(response => {
-          if (response.ok) {
-            return response.json();
-          }
-          return Promise.reject(
-            new Error(
-              'There are no images for this request, please try another one!!!'
-            )
-          );
-        })
-        .then(images => {
-          if (images.hits.length !== 0) {
-            this.setState({
-              images: [...this.state.images, ...images.hits],
-              status: 'resolved',
-              totalHits: images.totalHits,
-            });
-          } else {
-            toast.warn(
-              'There are no images for this request, please try another one!!!',
-              { autoClose: 8000 }
-            );
-            this.setState({ status: 'idle' });
-            return;
-          }
-        })
-        .catch(error => this.setState({ error, status: 'rejected' }));
+const Status = {
+  IDLE: 'idle',
+  PENDING: 'pending',
+  RESOLVED: 'resolved',
+  REJECTED: 'rejected',
+};
+
+export default function App() {
+  const [textSearch, setTextSearch] = useState('');
+  const [images, setImages] = useState([]);
+  const [error, setError] = useState(null);
+  const [status, setStatus] = useState(Status.IDLE);
+  const [page, setPage] = useState(1);
+  const [showModal, setShowModal] = useState(false);
+  const [largeImage, setLargeImage] = useState('');
+  const [totalHits, setTotlaHits] = useState(null);
+
+  useEffect(() => {
+    if (!textSearch) {
+      return;
     }
-  }
-  onLoadMore = () => {
-    const { page } = this.state;
-    getImages(this.state.textSearch, page + 1)
-      .then(response => {
-        if (response.ok) {
-          return response.json();
-        }
-        return Promise.reject(
-          new Error(
-            'There are no images for this request, please try another one!!!'
-          )
-        );
-      })
+    setStatus(Status.PENDING);
+
+    getImages(textSearch, page)
       .then(images => {
         if (images.hits.length !== 0) {
-          this.setState({
-            images: [...this.state.images, ...images.hits],
-            status: 'resolved',
-            page: page + 1,
+          setImages(prevImages => {
+            return [...prevImages, ...images.hits];
           });
+          setTotlaHits(images.totalHits);
+          setStatus(Status.RESOLVED);
         } else {
           toast.warn(
             'There are no images for this request, please try another one!!!',
             { autoClose: 8000 }
           );
-          this.setState({ status: 'idle' });
+          setStatus(Status.IDLE);
           return;
         }
       })
-      .catch(error => this.setState({ error, status: 'rejected' }));
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-    }));
-  };
-  handleSubmit = textSearch => {
-    this.setState({ textSearch, page: 1, images: [] });
+      .catch(error => {
+        setError(error);
+        setStatus(Status.REJECTED);
+      });
+  }, [textSearch]);
+  useEffect(() => {
+    if (page === 1) {
+      return;
+    }
+    getImages(textSearch, page)
+      .then(images => {
+        if (images.hits.length !== 0) {
+          setImages(prevImages => {
+            return [...prevImages, ...images.hits];
+          });
+          setTotlaHits(images.totalHits);
+          setStatus(Status.RESOLVED);
+        } else {
+          toast.warn(
+            'There are no images for this request, please try another one!!!',
+            { autoClose: 8000 }
+          );
+          setStatus(Status.IDLE);
+          return;
+        }
+      })
+      .catch(error => {
+        setError(error);
+        setStatus(Status.REJECTED);
+      });
+  }, [page]);
+  const handleSubmit = textSearch => {
+    setTextSearch(textSearch);
+    setPage(1);
+    setImages([]);
   };
 
-  toggleModal = () => {
-    this.setState(prevState => ({
-      showModal: !prevState.showModal,
-    }));
+  const toggleModal = () => {
+    setShowModal(!showModal);
   };
-  showModal = id => {
-    const image = this.state.images.find(image => image.id === id);
-    this.setState({
-      largeImage: image.largeImageURL,
-    });
+  const onShowModal = id => {
+    const image = images.find(image => image.id === id);
+    setLargeImage(image.largeImageURL);
   };
-  render() {
-    const { images, error, status, showModal, textSearch, totalHits } =
-      this.state;
-
-    return (
-      <div>
-        <Searchbar onSearch={this.handleSubmit} />
-        {status === 'idle' && <></>}
-        {status === 'pending' && <Loader />}
-        {status === 'resolved' && (
-          <ImageGallery
-            giveImage={this.giveLargeImage}
-            openModal={this.toggleModal}
-            handleView={this.showModal}
-            images={images}
-          />
-        )}
-        {status === 'rejected' && <div>{error.message}</div>}
-
-        {images.length > 0 && images.length !== totalHits && (
-          <Button decrementPage={this.onLoadMore} />
-        )}
-        <ToastContainer
-          position="top-right"
-          autoClose={4000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
+  const onLoadMore = () => {
+    setPage(prevPage => prevPage + 1);
+  };
+  return (
+    <div>
+      <Searchbar onSearch={handleSubmit} />
+      {status === Status.IDLE && <></>}
+      {status === Status.PENDING && <Loader />}
+      {status === Status.RESOLVED && (
+        <ImageGallery
+          openModal={toggleModal}
+          handleView={onShowModal}
+          images={images}
         />
-        {showModal && (
-          <Modal onClose={this.toggleModal}>
-            <img
-              src={this.state.largeImage}
-              alt={textSearch}
-              width={800}
-              height={500}
-            />
-          </Modal>
-        )}
-      </div>
-    );
-  }
-}
+      )}
+      {status === Status.REJECTED && <div>{error.message}</div>}
 
-export default App;
+      {images.length > 0 && images.length !== totalHits && (
+        <Button decrementPage={onLoadMore} />
+      )}
+      <ToastContainer
+        position="top-right"
+        autoClose={4000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+      {showModal && (
+        <Modal onClose={toggleModal}>
+          <img src={largeImage} alt={textSearch} width={800} height={500} />
+        </Modal>
+      )}
+    </div>
+  );
+}

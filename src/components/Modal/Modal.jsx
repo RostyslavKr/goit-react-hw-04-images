@@ -1,32 +1,29 @@
-import { Component } from 'react';
+import { useEffect } from 'react';
 import { BackDrop, ModalWindow } from './Modal.styled';
 
-export class Modal extends Component {
-  componentDidMount() {
-    window.addEventListener('keydown', this.handleKeyDown);
-  }
+export default function Modal({ children, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = e => {
+      if (e.code === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
 
-  componentWillUnmount() {
-    window.removeEventListener('keydown', this.handleKeyDown);
-  }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
 
-  handleKeyDown = e => {
-    if (e.code === 'Escape') {
-      this.props.onClose();
-    }
-  };
-
-  handleBackdropClick = e => {
+  const handleBackdropClick = e => {
     if (e.currentTarget === e.target) {
-      this.props.onClose();
+      onClose();
     }
   };
 
-  render() {
-    return (
-      <BackDrop onClick={this.handleBackdropClick}>
-        <ModalWindow>{this.props.children}</ModalWindow>
-      </BackDrop>
-    );
-  }
+  return (
+    <BackDrop onClick={handleBackdropClick}>
+      <ModalWindow>{children}</ModalWindow>
+    </BackDrop>
+  );
 }
