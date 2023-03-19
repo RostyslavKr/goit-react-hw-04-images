@@ -29,32 +29,31 @@ export default function App() {
     if (!textSearch) {
       return;
     }
-    setStatus(Status.PENDING);
 
-    getImages(textSearch, page)
-      .then(images => {
-        if (images.hits.length !== 0) {
-          setImages(prevImages => {
-            return [...prevImages, ...images.hits];
-          });
-          setTotlaHits(images.totalHits);
-          setStatus(Status.RESOLVED);
-        } else {
-          toast.warn(
-            'There are no images for this request, please try another one!!!',
-            { autoClose: 8000 }
-          );
-          setStatus(Status.IDLE);
-          return;
-        }
-      })
-      .catch(error => {
-        setError(error);
-        setStatus(Status.REJECTED);
-      });
-  }, [textSearch]);
-  useEffect(() => {
     if (page === 1) {
+      setStatus(Status.PENDING);
+
+      getImages(textSearch, page)
+        .then(images => {
+          if (images.hits.length !== 0) {
+            setImages(prevImages => {
+              return [...prevImages, ...images.hits];
+            });
+            setTotlaHits(images.totalHits);
+            setStatus(Status.RESOLVED);
+          } else {
+            toast.warn(
+              'There are no images for this request, please try another one!!!',
+              { autoClose: 8000 }
+            );
+            setStatus(Status.IDLE);
+            return;
+          }
+        })
+        .catch(error => {
+          setError(error);
+          setStatus(Status.REJECTED);
+        });
       return;
     }
     getImages(textSearch, page)
@@ -78,7 +77,8 @@ export default function App() {
         setError(error);
         setStatus(Status.REJECTED);
       });
-  }, [page]);
+  }, [textSearch, page]);
+
   const handleSubmit = textSearch => {
     setTextSearch(textSearch);
     setPage(1);
